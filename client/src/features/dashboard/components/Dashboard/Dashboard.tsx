@@ -2,8 +2,13 @@ import { StatsPanel } from "../StatsPanel/StatsPanel";
 import { RecentActivity } from "../RecentActivity/RecentActivity";
 import styles from "./Dashboard.module.css";
 import { useEffect, useState } from "react";
+import axios from "axios";
+import { LoadingSpinner } from "../../../../shared/components/LoadingSpinner/LoadingSpinner";
 import type { Ticket } from "../../../tickets/types/ticket.types";
 import type { DashboardStats } from "../../types/dashboard.types";
+import type { ApiResponse } from "../../../../shared/types/api.types";
+
+const API_URL = "http://localhost:4000/api";
 
 export function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -14,20 +19,15 @@ export function Dashboard() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const statsResponse = await fetch("http://localhost:4000/api/stats");
-        const recentResponse = await fetch("http://localhost:4000/api/stats/recent");
+        const [statsResponse, recentResponse] = await Promise.all([
+          axios.get<ApiResponse<DashboardStats>>(`${API_URL}/stats`),
+          axios.get<ApiResponse<Ticket[]>>(`${API_URL}/stats/recent`),
+        ]);
 
-        if (!statsResponse.ok || !recentResponse.ok) {
-          throw new Error("Failed to fetch data");
-        }
-
-        const statsJson = await statsResponse.json();
-        const recentJson = await recentResponse.json();
-
-        setStats(statsJson.data ?? statsJson);
-        setRecentTickets(recentJson.data ?? recentJson);
+        setStats(statsResponse.data.data);
+        setRecentTickets(recentResponse.data.data);
       } catch (err) {
-        setError((err as Error).message);
+        setError(axios.isAxiosError(err) ? err.response?.data?.message || "Failed to fetch data" : "Failed to fetch data");
       } finally {
         setLoading(false);
       }
@@ -37,7 +37,7 @@ export function Dashboard() {
   }, []);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <LoadingSpinner />;
   }
 
   if (error) {

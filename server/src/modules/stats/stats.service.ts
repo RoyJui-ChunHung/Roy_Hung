@@ -36,7 +36,6 @@ export const getStats = async () => {
   };
 };
 
-// 🔴 TODO: Accept a limit and pass it to the repository (it already takes one, default 5)
 export const getRecent = async (limit: number = 5) => {
   const tickets = await statsRepository.getRecentTickets(limit);
 

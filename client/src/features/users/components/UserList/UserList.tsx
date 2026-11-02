@@ -1,18 +1,33 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import axios from "axios";
+import { LoadingSpinner } from "../../../../shared/components/LoadingSpinner/LoadingSpinner";
+import type { ApiResponse } from "../../../../shared/types/api.types";
 import type { User, UserRole } from "../../types/user.types";
 import styles from "./UserList.module.css";
 
+const API_URL = "http://localhost:4000/api";
+
 export function UserList() {
-  // 🔴 TODO (bonus):
-  // 1. Fetch GET http://localhost:4000/api/users with axios inside useEffect, and store response.data.data with setUsers
-  //    (the response looks like { success: true, data: User[] })
-  // 2. Track loading and error states, and show them instead of the table
-  // 3. Replace the hardcoded <tr> rows below with filteredAndSorted.map() — remember the key prop
-  // 4. Show "No users found" when filteredAndSorted is empty
-  // 5. Replace the hardcoded count with filteredAndSorted.length
   const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState("");
   const [sortOrder, setSortOrder] = useState("asc");
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await axios.get<ApiResponse<User[]>>(`${API_URL}/users`);
+        setUsers(response.data.data);
+      } catch (err) {
+        setError(axios.isAxiosError(err) ? err.response?.data?.message || "Failed to fetch users" : "Failed to fetch users");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   // already written: filter by role and sort by display name
   const filteredAndSorted = useMemo(() => {
@@ -57,51 +72,43 @@ export function UserList() {
         </label>
 
         <span className={styles.resultCount}>
-          {/* 🔴 TODO (bonus): replace hardcoded count with the number of filtered users */}
-          3 users
+          {filteredAndSorted.length} {filteredAndSorted.length === 1 ? "user" : "users"}
         </span>
       </div>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>Display Name</th>
-            <th>Username</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Created At</th>
-          </tr>
-        </thead>
-        <tbody>
-          {/* 🔴 TODO (bonus): replace hardcoded rows with filteredAndSorted.map() */}
-          <tr>
-            <td>Admin User</td>
-            <td>admin</td>
-            <td>admin@helpdesk.com</td>
-            <td>
-              <span className={getRoleBadgeClass("admin")}>admin</span>
-            </td>
-            <td>6/1/2026</td>
-          </tr>
-          <tr>
-            <td>Alice Johnson</td>
-            <td>alice</td>
-            <td>alice@helpdesk.com</td>
-            <td>
-              <span className={getRoleBadgeClass("agent")}>agent</span>
-            </td>
-            <td>6/1/2026</td>
-          </tr>
-          <tr>
-            <td>Dave Brown</td>
-            <td>dave</td>
-            <td>dave@helpdesk.com</td>
-            <td>
-              <span className={getRoleBadgeClass("viewer")}>viewer</span>
-            </td>
-            <td>6/1/2026</td>
-          </tr>
-        </tbody>
-      </table>
+
+      {loading && <LoadingSpinner />}
+      {error && <p className={styles.error}>{error}</p>}
+
+      {!loading && !error && (
+        filteredAndSorted.length === 0 ? (
+          <p className={styles.noUsers}>No users found</p>
+        ) : (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Display Name</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Created At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAndSorted.map((user) => (
+                <tr key={user.id}>
+                  <td>{user.displayName}</td>
+                  <td>{user.username}</td>
+                  <td>{user.email}</td>
+                  <td>
+                    <span className={getRoleBadgeClass(user.role)}>{user.role}</span>
+                  </td>
+                  <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      )}
     </div>
   );
 }
